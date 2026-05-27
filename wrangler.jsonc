@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "yizheng",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-05-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "preview_urls": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "kv_namespaces": [
+    {
+      "binding": "ARTICLES_KV",
+      "id": "c0cb648289a547499250f79ed04bf58b",
+      "preview_id": "20362b513dde4264bc53e266212f50b9"
+    }
+  ]
+}

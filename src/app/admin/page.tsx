@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Lock, Send, Trash2, ExternalLink, ArrowLeft, AlertCircle, CheckCircle2, Loader2, Key, FileText, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -14,6 +15,28 @@ interface Article {
   wechatUrl: string;
 }
 
+function isArticle(value: unknown): value is Article {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Article).slug === 'string' &&
+    typeof (value as Article).title === 'string' &&
+    typeof (value as Article).summary === 'string' &&
+    typeof (value as Article).coverImage === 'string' &&
+    typeof (value as Article).date === 'string' &&
+    typeof (value as Article).readTime === 'string' &&
+    typeof (value as Article).wechatUrl === 'string'
+  );
+}
+
+function getApiErrorMessage(value: unknown, fallback: string) {
+  if (typeof value === 'object' && value !== null && typeof (value as { error?: unknown }).error === 'string') {
+    return (value as { error: string }).error;
+  }
+
+  return fallback;
+}
+
 export default function AdminPage() {
   const { theme, toggleTheme } = useTheme();
   const [password, setPassword] = useState('');
@@ -24,30 +47,36 @@ export default function AdminPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Load passcode from sessionStorage if exists
-  useEffect(() => {
-    const savedPassword = sessionStorage.getItem('admin_password');
-    if (savedPassword) {
-      setPassword(savedPassword);
-      setIsAuthenticated(true);
-    }
-    fetchArticles();
-  }, []);
-
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/articles');
       if (res.ok) {
-        const data = await res.json();
-        setArticles(data);
+        const data: unknown = await res.json();
+        setArticles(Array.isArray(data) ? data.filter(isArticle) : []);
       }
     } catch (err) {
       console.error('Error fetching articles:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Load passcode from sessionStorage if exists
+  useEffect(() => {
+    const savedPassword = sessionStorage.getItem('admin_password');
+    if (savedPassword) {
+      window.setTimeout(() => {
+        setPassword(savedPassword);
+        setIsAuthenticated(true);
+      }, 0);
+    }
+    const timer = window.setTimeout(() => {
+      fetchArticles();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [fetchArticles]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,21 +114,21 @@ export default function AdminPage() {
         body: JSON.stringify({ url: url.trim(), password }),
       });
 
-      const data = await res.json();
+      const data: unknown = await res.json();
 
       if (res.ok) {
         showTemporaryMessage('Article parsed and added successfully!', 'success');
         setUrl('');
-        fetchArticles(); // Reload list
+        fetchArticles();
       } else {
         if (res.status === 401) {
           handleLogout();
           showTemporaryMessage('Invalid passcode. Please log in again.', 'error');
         } else {
-          showTemporaryMessage(data.error || 'Failed to parse article.', 'error');
+          showTemporaryMessage(getApiErrorMessage(data, 'Failed to parse article.'), 'error');
         }
       }
-    } catch (err) {
+    } catch {
       showTemporaryMessage('Network error. Failed to add article.', 'error');
     } finally {
       setSubmitting(false);
@@ -116,20 +145,20 @@ export default function AdminPage() {
         body: JSON.stringify({ slug, password }),
       });
 
-      const data = await res.json();
+      const data: unknown = await res.json();
 
       if (res.ok) {
         showTemporaryMessage('Article deleted successfully.', 'success');
-        fetchArticles(); // Reload list
+        fetchArticles();
       } else {
         if (res.status === 401) {
           handleLogout();
           showTemporaryMessage('Invalid passcode. Please log in again.', 'error');
         } else {
-          showTemporaryMessage(data.error || 'Failed to delete article.', 'error');
+          showTemporaryMessage(getApiErrorMessage(data, 'Failed to delete article.'), 'error');
         }
       }
-    } catch (err) {
+    } catch {
       showTemporaryMessage('Network error. Failed to delete article.', 'error');
     }
   };
@@ -174,13 +203,13 @@ export default function AdminPage() {
           </form>
 
           <div className="text-center">
-            <a
+            <Link
               href="/"
               className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
             >
               <ArrowLeft size={12} />
               <span>Back to Portfolio</span>
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -196,12 +225,12 @@ export default function AdminPage() {
         {/* Top Header */}
         <header className="flex items-center justify-between p-4 rounded-2xl glass shadow-sm dark:shadow-zinc-950/20">
           <div className="flex items-center gap-3">
-            <a
+            <Link
               href="/"
               className="p-2 rounded-lg bg-white/50 hover:bg-white dark:bg-zinc-850 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-750 text-zinc-750 hover:text-zinc-950 dark:text-zinc-350 dark:hover:text-white transition-colors"
             >
               <ArrowLeft size={16} />
-            </a>
+            </Link>
             <div>
               <h1 className="text-base sm:text-lg font-bold">Weng&apos;s Portfolio</h1>
               <p className="text-[10px] text-zinc-500 dark:text-zinc-400">WeChat Article Manager</p>

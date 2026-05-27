@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Calendar, Clock, X, ArrowUpRight, MessageSquare, QrCode, ExternalLink, Check } from 'lucide-react';
+import { FileText, Calendar, Clock, X, MessageSquare, QrCode, ExternalLink, Check } from 'lucide-react';
 
 interface Article {
   slug: string;
@@ -12,6 +12,20 @@ interface Article {
   date: string;
   readTime: string;
   wechatUrl: string;
+}
+
+function isArticle(value: unknown): value is Article {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Article).slug === 'string' &&
+    typeof (value as Article).title === 'string' &&
+    typeof (value as Article).summary === 'string' &&
+    typeof (value as Article).coverImage === 'string' &&
+    typeof (value as Article).date === 'string' &&
+    typeof (value as Article).readTime === 'string' &&
+    typeof (value as Article).wechatUrl === 'string'
+  );
 }
 
 export default function Writing() {
@@ -26,8 +40,8 @@ export default function Writing() {
         setLoading(true);
         const res = await fetch('/api/articles');
         if (res.ok) {
-          const data = await res.json();
-          setArticles(data);
+          const data: unknown = await res.json();
+          setArticles(Array.isArray(data) ? data.filter(isArticle) : []);
         }
       } catch (err) {
         console.error('Error fetching articles:', err);
@@ -38,10 +52,14 @@ export default function Writing() {
     loadArticles();
   }, []);
 
-  const handleCopyID = () => {
-    navigator.clipboard.writeText('Beyond the Interface');
-    setCopiedID(true);
-    setTimeout(() => setCopiedID(false), 2000);
+  const handleCopyID = async () => {
+    try {
+      await navigator.clipboard.writeText('Beyond the Interface');
+      setCopiedID(true);
+      setTimeout(() => setCopiedID(false), 2000);
+    } catch (error) {
+      console.warn('Clipboard copy failed:', error);
+    }
   };
 
   return (
